@@ -87,10 +87,10 @@ newWin.document.close(); // 关闭输出流
       let finish = document.createElement('button');
       mask.id = 'mask';
       mask.className = 'mask';
-      mask.style = 'left: 0; top: 0; bottom:0; right:0; position: fixed; z-index: 200; background: rgba(0,0,0,0.6);';
+      mask.style = 'left: 0; top: 0; bottom:0; right:0; position: fixed; z-index: 				200; background: rgba(0,0,0,0.6);';
       finish.id = 'finish';
       finish.className = 'finish';
-      finish.style = 'position: absolute; z-index: 300; top: 50%; right: 50%; margin-top: -25px; margin-right: -91px; padding: 1em 2em; font-size: 14px; border: none; border-radius: 4px; color: #fff; background-color: #409eff';
+      finish.style = 'position: absolute; z-index: 300; top: 50%; right: 50%; 						margin-top: -25px; margin-right: -91px; padding: 1em 2em; font-size: 14px; 				 border: none; border-radius: 4px; color: #fff; background-color: #409eff';
       finish.innerHTML = '支払い終わりました';
       document.body.appendChild(mask);
       document.body.appendChild(finish);
@@ -137,6 +137,27 @@ newWin.document.close(); // 关闭输出流
    + `mask.parentNode.removeChild(mask)` 删除 mask 节点自己。`Node.removeChild()` 方法从DOM中删除一个子节点。返回删除的节点。
 
    + `document.documentElement.classList` 返回一个元素的类属性的实时 [`DOMTokenList`](https://developer.mozilla.org/zh-CN/docs/Web/API/DOMTokenList) 集合。我们可以对这个集合做 `.add('className')` 和 `.remove('className')` 等操作。[Element.classList]([Element.classList - Web API 接口参考 | MDN (mozilla.org)](https://developer.mozilla.org/zh-CN/docs/Web/API/Element/classList))
+   
+
+
+
+### 关于 `process.env.NODE_ENV`
+
+在 node 中，有全局变量 process 表示的是当前的 node 进程。
+
+我们可以在项目中把这个 process 打出来看看。
+
+`process.env` 包含着关于系统环境的信息，但是 `process.env` 中并不存在 `NODE_ENV` 这个东西。
+
+`NODE_ENV` 是一个用户自定义的变量，在 webpack 中它的用途是**判断是生产环境还是开发环境**。
+
+```javascript
+// 开发环境
+process.env.NODE_ENV === "development"
+
+// 生产环境
+process.env.NODE_ENV === "production"
+```
 
 ### 后端传给我 pdf  的 base64 字段，我在前端需要将 pdf  内嵌到  pdf.js 的 viewer.html 里面打开
 
