@@ -1,3 +1,11 @@
+
+
+## 目录
+
++ [`window.open()` 跳转新标签页被浏览器拦截问题](#`window.open()` 跳转新标签页被浏览器拦截问题)
++ [打开一个空白新标签页，新标签页里的所有内容都从接口获取](#打开一个空白新标签页，新标签页里的所有内容都从接口获取)
++ 
+
 ### `window.open()` 跳转新标签页被浏览器拦截问题
 
 在浏览器的安全机制里，非用户触发的 `window.open` 方法是会被拦截的。
@@ -6,7 +14,9 @@
 我们将 `window.open` 放到了 AJAX 的回调函数里面的话，就会被浏览器拦截，因为浏览器认定这不是用户所触发的。
 但如果我们在一个 button 的 click 事件上加上 `window.open` 的话，浏览器就会认为是用户点击触发的。
 
-而我这里遇到的问题就是，将 `window.open` 写在了 AJAX 的回调函数里面，所以导致了浏览器拦截。于是我将 `window.open` 的相关代码，都封装到了一个方法里面，然后在 AJAX 的回调函数中调用这个方法。这样就 ok 了，浏览器就不会拦截了。
+而我这里遇到的问题就是，将 `window.open` 写在了 AJAX 的回调
+
+函数里面，所以导致了浏览器拦截。于是我将 `window.open` 的相关代码，都封装到了一个方法里面，然后在 AJAX 的回调函数中调用这个方法。这样就 ok 了，浏览器就不会拦截了。
 
 ### 打开一个空白新标签页，新标签页里的所有内容都从接口获取
 
@@ -127,4 +137,154 @@ newWin.document.close(); // 关闭输出流
    + `mask.parentNode.removeChild(mask)` 删除 mask 节点自己。`Node.removeChild()` 方法从DOM中删除一个子节点。返回删除的节点。
 
    + `document.documentElement.classList` 返回一个元素的类属性的实时 [`DOMTokenList`](https://developer.mozilla.org/zh-CN/docs/Web/API/DOMTokenList) 集合。我们可以对这个集合做 `.add('className')` 和 `.remove('className')` 等操作。[Element.classList]([Element.classList - Web API 接口参考 | MDN (mozilla.org)](https://developer.mozilla.org/zh-CN/docs/Web/API/Element/classList))
+
+### 后端传给我 pdf  的 base64 字段，我在前端需要将 pdf  内嵌到  pdf.js 的 viewer.html 里面打开
+
+pdf.js 插件里，原来是 viewer.html 但是在这个项目里我将其重命名成了 index.html 。
+
+其实之前我们已经实现了将 pdf 内嵌到 pdf.js 的 index.html 页面里打开了，并在该页面里实现了客户想要的禁止右键、隐藏打印等按钮以及打印页面就让页面变成空白的功能。
+
+但是由于之前是直接将 pdf 的 url 传过来，我再将 url 放到地址栏的 file 参数里，所以用户可以直接复制地址栏里的链接去下载 pdf 。所以后端现在改了，不直接传 url， 而是经过 base64 加密后的 pdf url 的字段。
+
+```json
+JVBERi0xLjQKJdPr6eEKMSAwIG9iago8PC9DcmVhdG9yIChNb... // 后面还有非常长的内容
+```
+
+上面就是一个经过 base64 加密后的 pdf url 字段。
+
+**首先我要做的是将这个 base64 字段解密，能打开后端传给我的 pdf 。**
+
+刚开始尝试直接用 pdf.js 打开 base64 的 pdf ，但由于 base64 字段太长，根本没法从 file 参数里传过去（报 414 URL TooLong 错误）。还尝试挺多别的方法，都没成，但现在已经不太记得清了。
+
+这里的思路是，将 base64 转成 blob ，然后再用 `window.URL.createObjectURL` 方法将 blob 转成 url 打开。
+
+[Base64 representing PDF to blob - JavaScript]([Base64 representing PDF to blob - JavaScript - Stack Overflow](https://stackoverflow.com/questions/36036280/base64-representing-pdf-to-blob-javascript))
+
+在上面这篇文章里找到了如何将 base64 的 pdf 转成 blob。
+
+```javascript
+handleClick(row) {
+    let _this = this;
+    let data = {
+        files_name: row.name,
+        subject_id: row.subject_id,
+        level_id: row.level_id
+    };
+    pdfCheck(data)
+        .then((res) => {
+        // res.data 是后端传过来的 pdf 的 base64 字段
+        let base64str = res.data;
+        // 以防万一我会在 index.html 里会用到这个 base64 字段，所以存了一下 localStorage ，但实际上没有用到
+        localStorage.setItem('url', res.data);
+        // 将 pdf base64 字段解密成 blob 的代码
+        let binary = atob(base64str.replace(/\s/g, ''));
+        let len = binary.length;
+        let buffer = new ArrayBuffer(len);
+        let view = new Uint8Array(buffer);
+        for (let i = 0; i < len; i++) {
+            view[i] = binary.charCodeAt(i);
+        }
+        let blob = new Blob([view], {type: 'application/pdf'});
+        // 将 blob 用 URL.createObjectURL 转成 url
+        this.url = URL.createObjectURL(blob);
+        // 如果不判断 this.url !== '' 在第一次直接跳转一个 file= 参数为空的 index.html 页面
+        if (this.url !== '') {
+            this.windowOpen();
+        }
+    });
+},
+
+windowOpen() {
+    let _this = this;
+    if (process.env.NODE_ENV == 'production') {
+        window.open('/pdf/index.html?file=' + _this.url);
+    } else {
+        window.open('/pdf/index.html?file=' + _this.url);
+    }
+}
+```
+
+用以上代码，就能成功实现了打开后端传过来的 base64 加密后的 pdf 。
+
+但还有个问题，我们用 `URL.createObjectURL` 生成的这个 URL 也是可以打开 pdf 的。而且这个 URL 是直接写在地址栏的 file 参数里面的。
+
+**那现在怎么解决这个问题呢？**
+
+调查了很多，思路大概有三个，不通过地址栏的 file 参数来传 url；把 url 加密之后传给 file 参数，然后 index.html 的代码里面去解密；尝试用 pdf.js 插件直接直接收 base64 的 pdf。
+
+不通过地址栏传那就需要自己写一个页面，在里面用 canvas 标签或者 iframe 标签等来显示；
+
+用 pdf.js 插件直接接收 base64 的 pdf 这个考虑到我的 pdf.js 版本比较老，而且之前也对 pdf.js 文件做了一些修改，所以不好重新再来完全换一种实现方式；
+
+最后还是尝试用第二种方式来做。
+
+[前端加密的几种方式](https://blog.csdn.net/qq_41107680/article/details/109596232) 看了这篇博客，base64 加密肯定不行，base64 字段太长，浏览器会报 414 URL TooLong 错；MD5 和 sha1 是不可逆的也不行；`escape()` 只会将所有的空格符、标点符号、特殊字符以及其他非ASCII字符都将被转化成%xx格式的字符编码，这种加密明显不够也不行；最后决定使用 AES/DES 加密方式。
+
+
+
+### 「导出 memo」按钮的 bug 解决
+
+最开始的代码是这么写的，直接调用接口
+
+```javascript
+handleExport(row) { // 跳转按钮的点击事件
+    let _this = this;
+    let token = sessionStorage.getItem('token');
+    // this.address_img 是 http://101.34.137.163:8008/ 
+    window.open(`${_this.address_img}api/student/txt?token=${token}`);
+}
+```
+
+这样在学生有 memo 的时候，接口直接返给我的是所有需要下载的数据，然后我这边只需要跳转该 url  ``${_this.address_img}api/student/txt?token=${token}`` 就能下载下来学生的 memo。
+
+但是学生没有 memo 的时候，后端 `api/student/txt` 接口返给我的是 
+
+```json
+{
+	data: ""
+	status: "0000"
+	msg: ""
+}
+```
+
+所以在没有 memo 时，就会跳转到一个新标签页，然后里面的内容是上面的这些 json 数据。
+
+所以需要有个判断，学生是否有 memo 。
+
+这里我最开始用 `response.data.length` 的长度来判断，后来又换了用 `res.status === "0000"` 来判断。但都不行，最后用了 `typeof res == 'object'` 总算是成功了。最终代码如下：
+
+```javascript
+handleExport(row) { // 跳转按钮的点击事件
+    let _this = this;
+    let data = {};
+    let token = sessionStorage.getItem('token');
+    getTxt(data).then((res) => {
+        if (typeof res == 'object') {
+            _this.$message.error('还没有 memo 呢');
+        } else {
+            window.open(`${_this.address_img}api/student/txt?token=${token}`);
+        }
+    });
+},
+```
+
+### 用 WinSCP 将前端代码打包上传至服务器
+
+1. 前端项目中运行 `npm run build` 打包代码。
+2. 打开我们公司用来上传服务器的软件 WinSCP。
+   WinSCP 是一个 Windows 环境下使用的 SSH 的开源图形化 SFTP 客户端。同时支持 SCP 协议。它的主要功能是在本地与远程计算机间安全地复制文件，并且可以直接编辑文件。
+3. 输入 Host name 和 User name 和 Password ，点击 Log in 登录进入软件。
+4. 在左侧（本地目录）找到前端打包好的 dist 目录，在右侧（远程目录）找到需要上传的位置。
+5. 将右侧的需要更新的文件删除，将左侧 dist 目录里的最新打包好的文件拖进去。
+
+### ElementUI 的 `this.$message.success()` 使用
+
+`this.$message.success()` 里面的内容不能是 `undefined` 。
+
+如果是 `undefined` 的话会报下面的错：
+
+```
+Uncaught (in promise) TypeError: Cannot set properties of undefined (setting 'type')
+at Function.Message.<computed> [as success]
+```
 
