@@ -241,6 +241,80 @@ windowOpen() {
 
 [前端加密的几种方式](https://blog.csdn.net/qq_41107680/article/details/109596232) 看了这篇博客，base64 加密肯定不行，base64 字段太长，浏览器会报 414 URL TooLong 错；MD5 和 sha1 是不可逆的也不行；`escape()` 只会将所有的空格符、标点符号、特殊字符以及其他非ASCII字符都将被转化成%xx格式的字符编码，这种加密明显不够也不行；最后决定使用 AES/DES 加密方式。
 
+先要给 url 加密，url 需要在 teacherList.vue 组件加密。我们先在项目中安装 `npm install cryptojs` 
+
+然后在 utils 目录下，创建一个 utils.js 文件，在里面将加密的方法写进去。
+
+```javascript
+const CryptoJS = require('crypto-js'); //引用AES源码js
+const key = CryptoJS.enc.Utf8.parse("1234123412ABCDEF"); //十六位十六进制数作为密钥
+const iv = CryptoJS.enc.Utf8.parse('ABCDEF1234123412'); //十六位十六进制数作为密钥偏移量
+
+//加密方法
+export function Encrypt(word) {
+	let srcs = CryptoJS.enc.Utf8.parse(word);
+	let encrypted = CryptoJS.AES.encrypt(srcs, key, {
+		iv: iv,
+		mode: CryptoJS.mode.CBC,
+		padding: CryptoJS.pad.Pkcs7
+	});
+	return encrypted.ciphertext.toString().toUpperCase();
+	// 如果不需要解密.ciphertext.toString().toUpperCase();将这段代码删除
+}
+
+export default {
+	Encrypt
+}
+```
+
+然后再到需要的地方将这个文件里的 Encrypt 方法引入，对想要加密的 url 进行加密即可。
+
+```javascript
+ this.url = Encrypt(URL.createObjectURL(blob));
+```
+
+接下来就是解密了，我们需要将 `<script src="https://cdn.bootcss.com/crypto-js/3.1.9-1/crypto-js.min.js"></script>` 放到 `<script src="./viewer.js"></script>` 的前面，然后在 viewer.js 文件里面将一下解密的部分写进去。
+
+```javascript
+const key = CryptoJS.enc.Utf8.parse("1234123412ABCDEF"); //十六位十六进制数作为密钥
+const iv = CryptoJS.enc.Utf8.parse('ABCDEF1234123412'); //十六位十六进制数作为密钥偏移量
+
+function Decrypt(word) {
+  let encryptedHexStr = CryptoJS.enc.Hex.parse(word);
+  let srcs = CryptoJS.enc.Base64.stringify(encryptedHexStr);
+  let decrypt = CryptoJS.AES.decrypt(srcs, key, {
+    iv: iv,
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7
+  });
+  let decryptedStr = decrypt.toString(CryptoJS.enc.Utf8);
+  // console.log(Decrypt)
+  return decryptedStr.toString();
+}
+```
+
+现在我们需要找到 viewer.js 是在哪里拿地址栏的 file 参数并对 file 做处理的，然后在那里将这个 file 参数解密。
+
+经过打了多个 log，最后找到了在如下位置，我们给它解密了就可以了。
+
+```javascript
+    var parameters = Object.create(null);
+    if (typeof file === 'string') { // URL
+      this.setTitleUsingUrl(Decrypt(file)); // 这里
+      parameters.url = Decrypt(file);  // 这里
+    } else if (file && 'byteLength' in file) { // ArrayBuffer
+      parameters.data = file;
+    } else if (file.url && file.originalUrl) {
+      this.setTitleUsingUrl(file.originalUrl);
+      parameters.url = file.url;
+    }
+    if (args) {
+      for (var prop in args) {
+        parameters[prop] = args[prop];
+      }
+    }
+```
+
 
 
 ### 「导出 memo」按钮的 bug 解决
