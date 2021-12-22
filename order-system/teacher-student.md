@@ -376,7 +376,7 @@ handleExport(row) { // 跳转按钮的点击事件
 
 `this.$message.success()` 里面的内容不能是 `undefined` 。
 
-如果是 `undefined` 的话会报下面的错：
+如果是 `undefined` 的话会报错，具体如下：
 
 ```
 Uncaught (in promise) TypeError: Cannot set properties of undefined (setting 'type')
