@@ -25,5 +25,7 @@ TypeError: Cannot read properties of undefined (reading 'key')
 
 ```
 
-问题出在 layout 的值里面有一个 `pages`，但 layout 的可选值只  `sizes, prev ,pager ,  next, jumper, ->, total, slot` 。
+问题出在 layout 的值里面有一个 `pages`，但 layout 的可选值只  `sizes, prev , pager, next, jumper, ->, total 和 slot` 。
+
+
 
